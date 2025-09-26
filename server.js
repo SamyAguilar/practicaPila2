@@ -18,7 +18,7 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('MongoDB conectado exitosamente.'))
   .catch(err => console.error('Error al conectar a MongoDB:', err));
 
-// --- RUTAS DE LA API PARA EL CRUD ---
+// --- RUTAS DE LA API PARA EL CRUD COMPLETO ---
 
 // CREATE: Crear una nueva tarea
 app.post('/api/tasks', async (req, res) => {
@@ -34,32 +34,119 @@ app.post('/api/tasks', async (req, res) => {
 // READ: Obtener todas las tareas
 app.get('/api/tasks', async (req, res) => {
   try {
-    const tasks = await Task.find();
+    const tasks = await Task.find().sort({ createdAt: -1 }); // Ordenar por fecha de creación (más reciente primero)
     res.json(tasks);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// UPDATE: Marcar una tarea como completada/incompleta
-app.patch('/api/tasks/:id', async (req, res) => {
-    try {
-      const task = await Task.findById(req.params.id);
-      task.completed = !task.completed;
-      const updatedTask = await task.save();
-      res.json(updatedTask);
-    } catch (err) {
-      res.status(400).json({ message: err.message });
+// READ: Obtener una tarea específica por ID
+app.get('/api/tasks/:id', async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) {
+      return res.status(404).json({ message: 'Tarea no encontrada' });
     }
-  });
+    res.json(task);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// UPDATE: Actualizar completamente una tarea (descripción y estado)
+app.put('/api/tasks/:id', async (req, res) => {
+  try {
+    const { description, completed } = req.body;
+    
+    // Validar que la descripción no esté vacía
+    if (!description || description.trim() === '') {
+      return res.status(400).json({ message: 'La descripción es requerida' });
+    }
+    
+    const updatedTask = await Task.findByIdAndUpdate(
+      req.params.id,
+      { 
+        description: description.trim(),
+        completed: completed !== undefined ? completed : false
+      },
+      { new: true, runValidators: true }
+    );
+    
+    if (!updatedTask) {
+      return res.status(404).json({ message: 'Tarea no encontrada' });
+    }
+    
+    res.json(updatedTask);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// UPDATE: Marcar una tarea como completada/incompleta (actualización parcial)
+app.patch('/api/tasks/:id/toggle', async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) {
+      return res.status(404).json({ message: 'Tarea no encontrada' });
+    }
+    
+    task.completed = !task.completed;
+    const updatedTask = await task.save();
+    res.json(updatedTask);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// UPDATE: Actualizar solo la descripción de una tarea
+app.patch('/api/tasks/:id/description', async (req, res) => {
+  try {
+    const { description } = req.body;
+    
+    if (!description || description.trim() === '') {
+      return res.status(400).json({ message: 'La descripción es requerida' });
+    }
+    
+    const updatedTask = await Task.findByIdAndUpdate(
+      req.params.id,
+      { description: description.trim() },
+      { new: true, runValidators: true }
+    );
+    
+    if (!updatedTask) {
+      return res.status(404).json({ message: 'Tarea no encontrada' });
+    }
+    
+    res.json(updatedTask);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
 
 // DELETE: Borrar una tarea
 app.delete('/api/tasks/:id', async (req, res) => {
   try {
-    await Task.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Tarea eliminada' });
+    const deletedTask = await Task.findByIdAndDelete(req.params.id);
+    if (!deletedTask) {
+      return res.status(404).json({ message: 'Tarea no encontrada' });
+    }
+    res.json({ message: 'Tarea eliminada exitosamente', task: deletedTask });
   } catch (err) {
-    res.status(404).json({ message: 'Tarea no encontrada' });
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// DELETE: Borrar todas las tareas completadas
+app.delete('/api/tasks/completed/all', async (req, res) => {
+  try {
+    const result = await Task.deleteMany({ completed: true });
+    res.json({ 
+      message: `${result.deletedCount} tareas completadas eliminadas`,
+      deletedCount: result.deletedCount 
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 
