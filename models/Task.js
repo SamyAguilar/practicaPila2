@@ -19,6 +19,12 @@ const taskSchema = new mongoose.Schema({
     enum: ['Personal', 'Trabajo', 'Estudio', 'Hogar', 'Salud', 'Otro'],
     default: 'Personal'
   },
+  descripcion: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 500
+  },
   completed: {
     type: Boolean,
     default: false
