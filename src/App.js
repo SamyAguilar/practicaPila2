@@ -159,7 +159,7 @@ function App() {
 
   return (
     <div className="app">
-      <h1>Sistema CRUD de Tareas Completo</h1>
+      <h1>CRUD de Tareas NODE.JS</h1>
       
       <form onSubmit={createTask} className="form">
         <input
